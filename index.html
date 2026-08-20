@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rastreador de Tarefas — Equipe</title>
+<style>
+:root{
+  --bg:#FAFAF8; --surface:#FFFFFF; --border:#E3E2DE; --border-strong:#CFCEC8;
+  --text:#1B1B18; --text-soft:#6E6D66; --text-faint:#A5A49C;
+  --accent:#3D5A73; --accent-soft:#EAF0F3;
+  --high:#B5482C; --high-soft:#FBECE7;
+  --med:#A6791F; --med-soft:#FBF2E2;
+  --low:#4A6B52; --low-soft:#EBF2EC;
+  --late:#B5482C; --new-dot:#2E7D4F;
+  --radius:6px;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+body{font-family:var(--sans); background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased;}
+button{font-family:var(--sans); cursor:pointer;}
+
+.config-warning{background:var(--high-soft); color:var(--high); border-bottom:1px solid var(--high); font-size:13px; padding:10px 32px; display:none;}
+.config-warning.show{display:block;}
+
+/* ===== Login ===== */
+.login-screen{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;}
+.login-card{background:var(--surface); border:1px solid var(--border); border-radius:8px; width:100%; max-width:340px; padding:32px 28px; box-shadow:0 2px 20px rgba(0,0,0,0.04);}
+.login-card .brand-mark{width:10px; height:10px; background:var(--accent); margin-bottom:14px;}
+.login-card h1{font-size:18px; font-weight:600; margin-bottom:4px;}
+.login-card p.sub{font-size:12.5px; color:var(--text-soft); margin-bottom:22px;}
+.login-field{margin-bottom:14px;}
+.login-field label{font-size:11.5px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:5px;}
+.login-field input{width:100%; font-size:14px; padding:10px 12px; border:1px solid var(--border-strong); border-radius:var(--radius); background:var(--surface); color:var(--text);}
+.login-error{font-size:12.5px; color:var(--high); margin-bottom:12px; min-height:0;}
+.login-btn{width:100%; background:var(--accent); color:#fff; border:none; border-radius:var(--radius); padding:11px; font-size:13.5px; font-weight:600;}
+.login-btn:hover{opacity:0.92;}
+.login-btn:disabled{opacity:0.6; cursor:default;}
+.login-hint{font-size:11.5px; color:var(--text-faint); margin-top:16px; text-align:center;}
+
+/* ===== App shell ===== */
+.app{display:none;}
+.app.active{display:block;}
+.topbar{background:var(--surface); border-bottom:1px solid var(--border); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; position:sticky; top:0; z-index:20;}
+.brand{display:flex; align-items:center; gap:10px;}
+.brand-mark{width:10px; height:10px; background:var(--accent); flex-shrink:0;}
+.brand h1{font-size:16px; font-weight:600; letter-spacing:-0.01em;}
+.user-chip{display:flex; align-items:center; gap:10px; font-size:12.5px;}
+.user-chip .who{color:var(--text-soft);}
+.user-chip .role-tag{font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; background:var(--accent-soft); color:var(--accent); padding:2px 8px; border-radius:10px; font-weight:600;}
+.topbar-actions{display:flex; gap:8px; align-items:center;}
+
+.tabs{display:flex; gap:2px; padding:0 32px; background:var(--surface); border-bottom:1px solid var(--border);}
+.tab-btn{background:none; border:none; padding:12px 16px; font-size:13px; font-weight:500; color:var(--text-soft); border-bottom:2px solid transparent; margin-bottom:-1px; position:relative;}
+.tab-btn.active{color:var(--accent); border-bottom-color:var(--accent);}
+.tab-btn:hover{color:var(--text);}
+.tab-dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--new-dot); margin-left:5px; vertical-align:middle;}
+
+.kpis{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:1px; background:var(--border); border-bottom:1px solid var(--border);}
+.kpi{background:var(--surface); padding:16px 24px;}
+.kpi .num{font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-0.02em;}
+.kpi .label{font-size:11px; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.06em; margin-top:2px;}
+.kpi.warn .num{color:var(--late);}
+
+.filterbar{display:flex; gap:10px; padding:14px 32px; background:var(--bg); border-bottom:1px solid var(--border); flex-wrap:wrap; align-items:center;}
+.filterbar select, .filterbar input[type="text"]{font-family:var(--sans); font-size:13px; padding:7px 10px; border:1px solid var(--border-strong); border-radius:var(--radius); background:var(--surface); color:var(--text);}
+.filterbar input[type="text"]{min-width:200px; flex:1;}
+.filter-clear{font-size:12px; color:var(--text-soft); cursor:pointer; text-decoration:underline; background:none; border:none; padding:4px;}
+
+.btn{font-size:13px; font-weight:500; padding:8px 14px; border-radius:var(--radius); border:1px solid var(--border-strong); background:var(--surface); color:var(--text); transition:border-color .15s;}
+.btn:hover{border-color:var(--accent);}
+.btn-primary{background:var(--accent); color:#fff; border-color:var(--accent);}
+.btn-primary:hover{opacity:0.92;}
+.btn-primary:disabled{opacity:0.5; cursor:default;}
+.btn-ghost{border-color:transparent; background:transparent; color:var(--text-soft);}
+.btn-ghost:hover{color:var(--text); border-color:var(--border-strong);}
+.btn-small{font-size:12px; padding:5px 10px;}
+.btn-danger{color:var(--high);}
+.btn-danger:hover{border-color:var(--high); background:var(--high-soft);}
+
+.view-header{padding:16px 32px 0; display:flex; align-items:center; gap:10px;}
+.view-header .back{font-size:12.5px; color:var(--accent); background:none; border:none; text-decoration:underline;}
+.view-header h2{font-size:15px; font-weight:600;}
+.view-header .read-only-tag{font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-faint); border:1px solid var(--border); padding:2px 8px; border-radius:10px; font-family:var(--mono);}
+
+.board-wrap{padding:20px 32px 60px; overflow-x:auto;}
+.board{display:grid; grid-template-columns:repeat(4, minmax(260px,1fr)); gap:16px; min-width:900px;}
+.column{display:flex; flex-direction:column; min-height:120px;}
+.column-head{display:flex; align-items:center; justify-content:space-between; padding:0 4px 12px; border-bottom:2px solid var(--col-color, var(--border-strong)); margin-bottom:12px;}
+.column-head h3{font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;}
+.column-count{font-family:var(--mono); font-size:11px; color:var(--text-soft); background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:1px 8px;}
+.col-todo{--col-color:#8B8A82;} .col-doing{--col-color:var(--accent);} .col-blocked{--col-color:var(--high);} .col-done{--col-color:var(--low);}
+
+.card-list{display:flex; flex-direction:column; gap:8px; min-height:80px; flex:1; padding-bottom:8px;}
+.card-list.drag-over{background:var(--accent-soft); outline:1.5px dashed var(--accent); outline-offset:-2px; border-radius:var(--radius);}
+.card{background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--pri-color, var(--border-strong)); border-radius:var(--radius); padding:12px 13px; cursor:grab; transition:box-shadow .15s; position:relative;}
+.card.readonly{cursor:pointer;}
+.card:hover{box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.card.dragging{opacity:0.4;}
+.card.pri-alta{--pri-color:var(--high);} .card.pri-media{--pri-color:var(--med);} .card.pri-baixa{--pri-color:var(--low);}
+.card-title-row{display:flex; align-items:flex-start; justify-content:space-between; gap:6px; margin-bottom:8px;}
+.card-title{font-size:13.5px; font-weight:500; line-height:1.35;}
+.card-new-dot{width:7px; height:7px; border-radius:50%; background:var(--new-dot); flex-shrink:0; margin-top:4px;}
+.card-meta{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.card-project{font-size:11px; color:var(--text-soft); font-family:var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.card-due{font-size:11px; font-family:var(--mono); color:var(--text-soft); padding:1px 6px; border-radius:3px; background:var(--bg); flex-shrink:0;}
+.card-due.late{color:var(--late); background:var(--high-soft); font-weight:600;}
+.card-footer{display:flex; align-items:center; justify-content:space-between; margin-top:10px; flex-wrap:wrap; gap:4px;}
+.card-collab{font-size:10.5px; color:var(--accent); background:var(--accent-soft); padding:2px 8px; border-radius:10px;}
+.card-pri-tag{font-size:10px; text-transform:uppercase; letter-spacing:0.04em; color:var(--pri-color); font-weight:600;}
+.empty-col{font-size:12px; color:var(--text-faint); text-align:center; padding:20px 8px; border:1px dashed var(--border); border-radius:var(--radius);}
+
+.team-grid{padding:20px 32px 60px; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px;}
+.team-card{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:18px; cursor:pointer; transition:box-shadow .15s, border-color .15s;}
+.team-card:hover{box-shadow:0 2px 10px rgba(0,0,0,0.06); border-color:var(--accent);}
+.team-card .name{font-size:14.5px; font-weight:600; margin-bottom:2px;}
+.team-card .role{font-size:11px; color:var(--text-faint); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:12px;}
+.team-card .stats{display:flex; gap:14px;}
+.team-card .stat .n{font-family:var(--mono); font-size:18px; font-weight:600;}
+.team-card .stat .n.late{color:var(--late);}
+.team-card .stat .n.new{color:var(--new-dot);}
+.team-card .stat .l{font-size:10px; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.04em;}
+
+.users-wrap{padding:20px 32px 60px;}
+.users-table{width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden;}
+.users-table th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-soft); background:var(--bg); padding:10px 14px; border-bottom:1px solid var(--border);}
+.users-table td{padding:11px 14px; font-size:13px; border-bottom:1px solid var(--border);}
+.users-table tr:last-child td{border-bottom:none;}
+.badge{font-size:10.5px; font-family:var(--mono); text-transform:uppercase; letter-spacing:0.04em; padding:2px 8px; border-radius:10px;}
+.badge-admin{background:var(--high-soft); color:var(--high);}
+.badge-gerente{background:var(--accent-soft); color:var(--accent);}
+.badge-membro{background:var(--low-soft); color:var(--low);}
+.badge-inactive{background:var(--bg); color:var(--text-faint); border:1px solid var(--border);}
+
+/* ===== Modal ===== */
+.overlay{position:fixed; inset:0; background:rgba(20,20,18,0.4); display:none; align-items:flex-start; justify-content:center; padding:40px 20px; overflow-y:auto; z-index:100;}
+.overlay.active{display:flex;}
+.modal{background:var(--surface); border-radius:8px; width:100%; max-width:540px; border:1px solid var(--border); box-shadow:0 12px 40px rgba(0,0,0,0.15);}
+.modal-head{padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;}
+.modal-head h3{font-size:15px; font-weight:600;}
+.modal-close{font-size:20px; color:var(--text-soft); background:none; border:none; line-height:1;}
+.modal-body{padding:20px 22px; display:flex; flex-direction:column; gap:14px; max-height:65vh; overflow-y:auto;}
+.field{display:flex; flex-direction:column; gap:5px;}
+.field label{font-size:11.5px; font-weight:600; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.04em;}
+.field input, .field select, .field textarea{font-family:var(--sans); font-size:13.5px; padding:9px 11px; border:1px solid var(--border-strong); border-radius:var(--radius); background:var(--surface); color:var(--text); width:100%;}
+.field input:disabled, .field select:disabled, .field textarea:disabled{background:var(--bg); color:var(--text-soft);}
+.field textarea{resize:vertical; min-height:60px; font-family:var(--sans);}
+.field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.field-note{font-size:11.5px; color:var(--text-faint);}
+.meta-line{font-size:12px; color:var(--text-soft);}
+.meta-line b{color:var(--text);}
+
+.collab-picker{display:flex; flex-wrap:wrap; gap:6px; border:1px solid var(--border-strong); border-radius:var(--radius); padding:8px; max-height:120px; overflow-y:auto;}
+.collab-chip{display:flex; align-items:center; gap:5px; font-size:12px; background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:4px 10px 4px 6px; cursor:pointer; user-select:none;}
+.collab-chip input{margin:0;}
+.collab-chip.checked{background:var(--accent-soft); border-color:var(--accent); color:var(--accent); font-weight:600;}
+.collab-static{font-size:12px; background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:4px 10px;}
+
+.modal-footer{padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;}
+.confirm-row{display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--high);}
+.confirm-row .btn{padding:6px 12px; font-size:12px;}
+
+/* ===== Atualizações (thread) ===== */
+.updates-section{border-top:1px solid var(--border); padding-top:14px; margin-top:2px;}
+.updates-section h4{font-size:12px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-soft); margin-bottom:10px;}
+.update-item{display:flex; gap:10px; margin-bottom:14px;}
+.update-avatar{width:26px; height:26px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.update-body{flex:1; min-width:0;}
+.update-head{display:flex; align-items:baseline; gap:8px; margin-bottom:3px;}
+.update-author{font-size:12.5px; font-weight:600;}
+.update-date{font-size:11px; color:var(--text-faint); font-family:var(--mono);}
+.update-text{font-size:13px; line-height:1.45; color:var(--text); white-space:pre-wrap;}
+.update-img{max-width:100%; max-height:220px; border-radius:6px; margin-top:6px; border:1px solid var(--border); display:block;}
+.updates-empty{font-size:12.5px; color:var(--text-faint);}
+
+.update-form{display:flex; flex-direction:column; gap:8px; margin-top:6px;}
+.update-form textarea{font-family:var(--sans); font-size:13px; padding:9px 11px; border:1px solid var(--border-strong); border-radius:var(--radius); min-height:56px; resize:vertical;}
+.update-form-row{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.update-file-label{font-size:12px; color:var(--accent); cursor:pointer; display:flex; align-items:center; gap:5px;}
+.update-file-name{font-size:11.5px; color:var(--text-faint);}
+
+.toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--text); color:#fff; font-size:13px; padding:10px 18px; border-radius:6px; opacity:0; pointer-events:none; transition:all .25s; z-index:200;}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+.loading-bar{position:fixed; top:0; left:0; height:2px; background:var(--accent); width:0%; transition:width .3s; z-index:300;}
+.loading-bar.active{width:70%;}
+
+@media (max-width:860px){
+  .board{grid-template-columns:1fr; min-width:0;}
+  .board-wrap{padding:16px;}
+  .topbar, .filterbar, .view-header, .team-grid, .users-wrap{padding-left:16px; padding-right:16px;}
+  .field-row{grid-template-columns:1fr;}
+}
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;}}
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loadingBar"></div>
+
+<div class="config-warning" id="configWarning">
+  ⚠️ O backend ainda não foi configurado. Encontre <code>const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxR5Tyrz02hyZreGm3lI2WOnZiubxp1MbxjmitjS41dx6KQChsZ7oYBDLf35o7jb4KJfw/exec";</code> no script e cole a URL do seu Google Apps Script publicado (veja instruções no arquivo <strong>Code.gs</strong>).
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="brand-mark"></div>
+    <h1>Rastreador de Tarefas</h1>
+    <p class="sub">Entre com seu usuário e senha para acessar seu painel.</p>
+    <div class="login-field"><label>Usuário</label><input type="text" id="loginUsuario" autocomplete="username"></div>
+    <div class="login-field"><label>Senha</label><input type="password" id="loginSenha" autocomplete="current-password"></div>
+    <div class="login-error" id="loginError"></div>
+    <button class="login-btn" id="btnLogin">Entrar</button>
+    <p class="login-hint">Não tem acesso? Peça ao administrador para criar seu usuário.</p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="brand"><div class="brand-mark"></div><h1>Rastreador de Tarefas</h1></div>
+    <div class="topbar-actions">
+      <div class="user-chip"><span class="who" id="userNome">—</span><span class="role-tag" id="userPapel">—</span></div>
+      <button class="btn btn-small" id="btnRefresh">Atualizar</button>
+      <button class="btn btn-ghost btn-small" id="btnLogout">Sair</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <!-- ---- BOARD ---- -->
+  <div id="viewBoard">
+    <div class="view-header" id="boardViewHeader" style="display:none;">
+      <button class="back" id="btnBackToTeam">← Voltar para Equipe</button>
+      <h2 id="boardViewTitle"></h2>
+      <span class="read-only-tag" id="boardReadOnlyTag" style="display:none;">Somente leitura + inserir</span>
+    </div>
+
+    <div class="kpis" id="boardKpis">
+      <div class="kpi"><div class="num" id="kpiTotal">0</div><div class="label">Total de tarefas</div></div>
+      <div class="kpi warn"><div class="num" id="kpiLate">0</div><div class="label">Atrasadas</div></div>
+      <div class="kpi"><div class="num" id="kpiDoing">0</div><div class="label">Em andamento</div></div>
+      <div class="kpi"><div class="num" id="kpiWeek">0</div><div class="label">Concluídas (7 dias)</div></div>
+    </div>
+
+    <div class="filterbar">
+      <input type="text" id="fSearch" placeholder="Buscar por título...">
+      <select id="fProjeto"><option value="">Projeto (todos)</option></select>
+      <select id="fPrioridade">
+        <option value="">Prioridade (todas)</option>
+        <option value="Alta">Alta</option><option value="Média">Média</option><option value="Baixa">Baixa</option>
+      </select>
+      <select id="fPrazo">
+        <option value="">Prazo (todos)</option>
+        <option value="atrasadas">Atrasadas</option><option value="7dias">Próximos 7 dias</option>
+      </select>
+      <button class="filter-clear" id="btnClearFilters">Limpar filtros</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-primary" id="btnNewTask">+ Nova tarefa</button>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board">
+        <div class="column">
+          <div class="column-head col-todo"><h3>A Fazer</h3><span class="column-count" id="count-todo">0</span></div>
+          <div class="card-list" data-status="todo" id="list-todo"></div>
+        </div>
+        <div class="column">
+          <div class="column-head col-doing"><h3>Em Andamento</h3><span class="column-count" id="count-doing">0</span></div>
+          <div class="card-list" data-status="doing" id="list-doing"></div>
+        </div>
+        <div class="column">
+          <div class="column-head col-blocked"><h3>Bloqueado</h3><span class="column-count" id="count-blocked">0</span></div>
+          <div class="card-list" data-status="blocked" id="list-blocked"></div>
+        </div>
+        <div class="column">
+          <div class="column-head col-done"><h3>Concluído</h3><span class="column-count" id="count-done">0</span></div>
+          <div class="card-list" data-status="done" id="list-done"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- EQUIPE ---- -->
+  <div id="viewTeam" style="display:none;">
+    <div class="view-header"><h2>Equipe</h2></div>
+    <div class="team-grid" id="teamGrid"></div>
+  </div>
+
+  <!-- ---- USUÁRIOS (admin) ---- -->
+  <div id="viewUsers" style="display:none;">
+    <div class="view-header"><h2>Usuários</h2></div>
+    <div class="users-wrap">
+      <div style="margin-bottom:14px; display:flex; justify-content:flex-end;">
+        <button class="btn btn-primary" id="btnNewUser">+ Novo usuário</button>
+      </div>
+      <table class="users-table">
+        <thead><tr><th>Nome</th><th>Login</th><th>Papel</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="usersTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: TAREFA ============ -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Nova tarefa</h3>
+      <button class="modal-close" id="btnCloseModal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Título</label>
+        <input type="text" id="mTitulo" placeholder="Ex: Revisar planilha de estoque excedente">
+      </div>
+      <div class="field">
+        <label>Descrição</label>
+        <textarea id="mDescricao" placeholder="Detalhes, contexto ou link relacionado..."></textarea>
+      </div>
+
+      <div class="field" id="collabPickerWrap">
+        <label>Colaboradores</label>
+        <div class="collab-picker" id="collabPicker"></div>
+        <p class="field-note">Cada colaborador selecionado terá seu próprio card, com status independente.</p>
+      </div>
+      <div class="field" id="collabStaticWrap" style="display:none;">
+        <label>Colaboradores</label>
+        <div class="collab-picker" id="collabStaticList"></div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Projeto</label>
+          <input type="text" id="mProjeto" placeholder="Ex: Suprimentos, PCP...">
+        </div>
+        <div class="field">
+          <label>Prioridade</label>
+          <select id="mPrioridade">
+            <option value="Alta">Alta</option><option value="Média" selected>Média</option><option value="Baixa">Baixa</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Prazo (data de conclusão)</label>
+        <input type="date" id="mPrazo">
+      </div>
+
+      <div class="field" id="statusFieldWrap">
+        <label>Status</label>
+        <select id="mStatus">
+          <option value="todo">A Fazer</option><option value="doing">Em Andamento</option>
+          <option value="blocked">Bloqueado</option><option value="done">Concluído</option>
+        </select>
+      </div>
+      <p class="field-note" id="statusLockedNote" style="display:none;">Tarefas com colaboradores inseridas por outra pessoa entram na coluna "A Fazer".</p>
+
+      <div class="meta-line" id="metaCreatedBy" style="display:none;"></div>
+
+      <div class="updates-section" id="updatesSection" style="display:none;">
+        <h4>Atualizações</h4>
+        <div id="updatesList"></div>
+        <div class="update-form" id="updateFormWrap" style="display:none;">
+          <textarea id="updateTexto" placeholder="O que você fez nesta tarefa? Descreva aqui..."></textarea>
+          <div class="update-form-row">
+            <label class="update-file-label">
+              📎 Anexar imagem
+              <input type="file" id="updateImagem" accept="image/*" style="display:none;">
+            </label>
+            <span class="update-file-name" id="updateFileName"></span>
+            <div style="flex:1;"></div>
+            <button class="btn btn-small btn-primary" id="btnPostUpdate">Publicar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btnDeleteTask" style="display:none;">Excluir tarefa</button>
+      <div class="confirm-row" id="confirmDeleteRow" style="display:none;">
+        <span>Excluir esta tarefa (todos os colaboradores)?</span>
+        <button class="btn btn-ghost" id="btnCancelDelete">Cancelar</button>
+        <button class="btn btn-primary" id="btnConfirmDelete" style="background:var(--high); border-color:var(--high);">Excluir</button>
+      </div>
+      <div style="flex:1;" id="footerSpacer"></div>
+      <button class="btn btn-ghost" id="btnCancelModal">Fechar</button>
+      <button class="btn btn-primary" id="btnSaveTask">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: USUÁRIO ============ -->
+<div class="overlay" id="userOverlay">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-head">
+      <h3 id="userModalTitle">Novo usuário</h3>
+      <button class="modal-close" id="btnCloseUserModal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Nome</label><input type="text" id="uNome" placeholder="Nome completo"></div>
+      <div class="field"><label>Login</label><input type="text" id="uLogin" placeholder="ex: joao.silva"></div>
+      <div class="field"><label id="uSenhaLabel">Senha</label><input type="text" id="uSenha" placeholder="Defina uma senha simples"></div>
+      <div class="field">
+        <label>Papel</label>
+        <select id="uPapel"><option value="membro">Membro</option><option value="gerente">Gerente</option><option value="admin">Administrador</option></select>
+      </div>
+      <div class="field" id="uAtivoWrap" style="display:none;">
+        <label>Status</label>
+        <select id="uAtivo"><option value="true">Ativo</option><option value="false">Desativado</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div style="flex:1;"></div>
+      <button class="btn btn-ghost" id="btnCancelUserModal">Cancelar</button>
+      <button class="btn btn-primary" id="btnSaveUser">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // =====================================================================
+  // CONFIGURAÇÃO — cole aqui a URL do seu Web App do Google Apps Script
+  // =====================================================================
+  const WEBAPP_URL = ""; // <-- COLE A URL AQUI, ex: "https://script.google.com/macros/s/AKfycb.../exec"
+
+  const SESSION_KEY = "rt_session_v2";
+
+  let currentUser = null;
+  let allCards = [];          // participações (= cards) visíveis ao usuário atual
+  let allEquipe = [];         // usuários da aba Equipe (role-filtrado)
+  let colegasMap = {};        // login -> {nome, login, papel}
+  let editingCard = null;     // card sendo editado (objeto completo) ou null
+  let creatingForLogin = null;// quando != null, modal está criando tarefa já com esse colaborador pré-marcado
+  let draggedParticipacaoId = null;
+  let pendingImageFile = null;
+
+  let currentTab = "minhas";
+  let boardView = "own";           // 'own' ou login do membro sendo visualizado
+  let viewedUserNome = "";
+
+  // ---------------------------------------------------------------------
+  // API
+  // ---------------------------------------------------------------------
+  function api(action, payload){
+    if(!WEBAPP_URL){
+      toast("Backend não configurado. Veja a mensagem no topo da página.");
+      return Promise.reject(new Error("WEBAPP_URL vazio"));
+    }
+    setLoading(true);
+    return fetch(WEBAPP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(Object.assign({action}, payload || {}))
+    })
+    .then(r => r.json())
+    .then(data => {
+      setLoading(false);
+      if(!data.ok){ toast(data.erro || "Erro na requisição"); throw new Error(data.erro || "Erro"); }
+      return data;
+    })
+    .catch(err=>{
+      setLoading(false);
+      if(err.message !== "WEBAPP_URL vazio") toast(err.message || "Falha de conexão com o servidor");
+      throw err;
+    });
+  }
+  function setLoading(active){ document.getElementById("loadingBar").classList.toggle("active", active); }
+
+  // ---------------------------------------------------------------------
+  // Sessão
+  // ---------------------------------------------------------------------
+  function saveSession(){ localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser)); }
+  function loadSession(){ try{ const raw = localStorage.getItem(SESSION_KEY); if(raw) currentUser = JSON.parse(raw); }catch(e){} }
+  function clearSession(){ currentUser = null; localStorage.removeItem(SESSION_KEY); }
+
+  function attemptLogin(){
+    const login = document.getElementById("loginUsuario").value.trim();
+    const senha = document.getElementById("loginSenha").value;
+    const errEl = document.getElementById("loginError");
+    errEl.textContent = "";
+    if(!login || !senha){ errEl.textContent = "Informe usuário e senha."; return; }
+    const btn = document.getElementById("btnLogin");
+    btn.disabled = true; btn.textContent = "Entrando...";
+    api("login", {login, senha})
+      .then(data=>{ currentUser = data.usuario; saveSession(); enterApp(); })
+      .catch(()=>{ errEl.textContent = "Usuário ou senha inválidos."; })
+      .finally(()=>{ btn.disabled = false; btn.textContent = "Entrar"; });
+  }
+  function logout(){ clearSession(); location.reload(); }
+
+  // ---------------------------------------------------------------------
+  // App shell
+  // ---------------------------------------------------------------------
+  function enterApp(){
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("app").classList.add("active");
+    document.getElementById("userNome").textContent = currentUser.nome;
+    document.getElementById("userPapel").textContent = currentUser.papel;
+    buildTabs();
+    loadColegas().then(()=> switchTab("minhas"));
+  }
+
+  function loadColegas(){
+    return api("getColegas", {}).then(data=>{
+      colegasMap = {};
+      (data.usuarios||[]).forEach(u=> colegasMap[u.login] = u);
+    }).catch(()=>{});
+  }
+  function nomeDe(login){ return (colegasMap[login] && colegasMap[login].nome) || login; }
+  function iniciaisDe(login){ const n = nomeDe(login); return n.split(" ").map(p=>p[0]).slice(0,2).join("").toUpperCase(); }
+
+  function buildTabs(){
+    const tabsEl = document.getElementById("tabs");
+    let html = `<button class="tab-btn" data-tab="minhas">Minhas Tarefas</button>`;
+    if(currentUser.papel === "gerente" || currentUser.papel === "admin") html += `<button class="tab-btn" data-tab="equipe">Equipe</button>`;
+    if(currentUser.papel === "admin") html += `<button class="tab-btn" data-tab="usuarios">Usuários</button>`;
+    tabsEl.innerHTML = html;
+    tabsEl.querySelectorAll(".tab-btn").forEach(b=> b.addEventListener("click", ()=> switchTab(b.dataset.tab)));
+  }
+
+  function switchTab(tab){
+    currentTab = tab;
+    document.querySelectorAll(".tab-btn").forEach(b=> b.classList.toggle("active", b.dataset.tab === tab));
+    document.getElementById("viewBoard").style.display = "none";
+    document.getElementById("viewTeam").style.display = "none";
+    document.getElementById("viewUsers").style.display = "none";
+
+    if(tab === "minhas"){
+      boardView = "own";
+      document.getElementById("boardViewHeader").style.display = "none";
+      document.getElementById("viewBoard").style.display = "block";
+      loadCardsAndRender();
+    } else if(tab === "equipe"){
+      document.getElementById("viewTeam").style.display = "block";
+      loadEquipeAndRenderTeam();
+    } else if(tab === "usuarios"){
+      document.getElementById("viewUsers").style.display = "block";
+      loadUsersAndRenderTable();
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Carregamento de dados
+  // ---------------------------------------------------------------------
+  function loadCardsAndRender(){
+    api("getParticipacoes", {loginSolicitante: currentUser.login, papelSolicitante: currentUser.papel})
+      .then(data=>{ allCards = data.cards || []; renderBoard(); })
+      .catch(()=>{});
+  }
+  function loadEquipeAndRenderTeam(){
+    Promise.all([
+      api("getEquipe", {papelSolicitante: currentUser.papel}),
+      api("getParticipacoes", {loginSolicitante: currentUser.login, papelSolicitante: currentUser.papel})
+    ]).then(([eData, cData])=>{
+      allEquipe = eData.usuarios || [];
+      allCards = cData.cards || [];
+      renderTeamGrid();
+    }).catch(()=>{});
+  }
+  function loadUsersAndRenderTable(){
+    api("getUsuarios", {}).then(data=>{ allEquipe = data.usuarios || []; renderUsersTable(); }).catch(()=>{});
+  }
+
+  // ---------------------------------------------------------------------
+  // EQUIPE — grade de membros
+  // ---------------------------------------------------------------------
+  function renderTeamGrid(){
+    const grid = document.getElementById("teamGrid");
+    if(allEquipe.length === 0){
+      grid.innerHTML = `<p style="color:var(--text-faint); font-size:13px;">Nenhum membro cadastrado ainda.</p>`;
+      return;
+    }
+    const today = new Date().toISOString().slice(0,10);
+    grid.innerHTML = allEquipe.map(u=>{
+      const cards = allCards.filter(c=> String(c.colaborador).toLowerCase() === String(u.login).toLowerCase());
+      const late = cards.filter(c=> c.prazo && c.status !== "done" && c.prazo < today).length;
+      const novas = cards.filter(c=> !c.visualizada).length;
+      return `
+        <div class="team-card" data-login="${escapeHtml(u.login)}" data-nome="${escapeHtml(u.nome)}">
+          <div class="name">${escapeHtml(u.nome)}</div>
+          <div class="role">${escapeHtml(u.papel)}</div>
+          <div class="stats">
+            <div class="stat"><div class="n">${cards.length}</div><div class="l">Tarefas</div></div>
+            <div class="stat"><div class="n ${late>0?'late':''}">${late}</div><div class="l">Atrasadas</div></div>
+            <div class="stat"><div class="n ${novas>0?'new':''}">${novas}</div><div class="l">Novas</div></div>
+          </div>
+        </div>
+      `;
+    }).join("");
+    grid.querySelectorAll(".team-card").forEach(card=>{
+      card.addEventListener("click", ()=>{
+        boardView = card.dataset.login;
+        viewedUserNome = card.dataset.nome;
+        document.getElementById("viewTeam").style.display = "none";
+        document.getElementById("viewBoard").style.display = "block";
+        document.getElementById("boardViewHeader").style.display = "flex";
+        document.getElementById("boardViewTitle").textContent = "Painel de " + viewedUserNome;
+        document.getElementById("boardReadOnlyTag").style.display = "inline-block";
+        loadCardsAndRender();
+      });
+    });
+  }
+  document.getElementById("btnBackToTeam").addEventListener("click", ()=>{
+    boardView = "own";
+    document.getElementById("boardViewHeader").style.display = "none";
+    document.getElementById("boardReadOnlyTag").style.display = "none";
+    document.getElementById("viewBoard").style.display = "none";
+    document.getElementById("viewTeam").style.display = "block";
+  });
+
+  // ---------------------------------------------------------------------
+  // BOARD — helpers
+  // ---------------------------------------------------------------------
+  function isViewingOwnBoard(){ return boardView === "own"; }
+  function boardOwnerLogin(){ return isViewingOwnBoard() ? currentUser.login : boardView; }
+  function isLate(c){ if(!c.prazo || c.status === "done") return false; return c.prazo < new Date().toISOString().slice(0,10); }
+  function fmtDate(iso){ if(!iso) return "—"; const [y,m,d] = String(iso).split("-"); return `${d}/${m}`; }
+  function priClass(p){ if(p === "Alta") return "pri-alta"; if(p === "Baixa") return "pri-baixa"; return "pri-media"; }
+  function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"), 2600); }
+  function escapeHtml(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---------------------------------------------------------------------
+  // Filtros
+  // ---------------------------------------------------------------------
+  function getFilters(){
+    return {
+      search: document.getElementById("fSearch").value.trim().toLowerCase(),
+      projeto: document.getElementById("fProjeto").value,
+      prioridade: document.getElementById("fPrioridade").value,
+      prazo: document.getElementById("fPrazo").value,
+    };
+  }
+  function applyFilters(cards){
+    const f = getFilters();
+    const today = new Date().toISOString().slice(0,10);
+    const in7 = new Date(); in7.setDate(in7.getDate()+7);
+    const in7str = in7.toISOString().slice(0,10);
+    return cards.filter(c=>{
+      if(f.search && !String(c.titulo).toLowerCase().includes(f.search)) return false;
+      if(f.projeto && c.projeto !== f.projeto) return false;
+      if(f.prioridade && c.prioridade !== f.prioridade) return false;
+      if(f.prazo === "atrasadas" && !isLate(c)) return false;
+      if(f.prazo === "7dias" && !(c.prazo && c.prazo >= today && c.prazo <= in7str)) return false;
+      return true;
+    });
+  }
+  function populateFilterOptions(cardsForBoard){
+    const projetos = [...new Set(cardsForBoard.map(c=>c.projeto).filter(Boolean))].sort();
+    const sel = document.getElementById("fProjeto");
+    const current = sel.value;
+    sel.innerHTML = `<option value="">Projeto (todos)</option>` + projetos.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("");
+    if(projetos.includes(current)) sel.value = current;
+  }
+
+  // ---------------------------------------------------------------------
+  // Render Board
+  // ---------------------------------------------------------------------
+  function renderBoard(){
+    const ownerLogin = boardOwnerLogin();
+    const cardsForBoard = allCards.filter(c=> String(c.colaborador).toLowerCase() === String(ownerLogin).toLowerCase());
+    populateFilterOptions(cardsForBoard);
+    const filtered = applyFilters(cardsForBoard);
+
+    const cols = {todo:[], doing:[], blocked:[], done:[]};
+    filtered.forEach(c=> (cols[c.status] || cols.todo).push(c));
+
+    const editable = isViewingOwnBoard();
+
+    Object.keys(cols).forEach(status=>{
+      const list = document.getElementById("list-"+status);
+      const items = cols[status].slice().sort((a,b)=> String(a.prazo||"9999").localeCompare(String(b.prazo||"9999")));
+      document.getElementById("count-"+status).textContent = items.length;
+      list.innerHTML = items.length === 0 ? `<div class="empty-col">Nenhuma tarefa</div>` : items.map(c=>cardHtml(c, editable)).join("");
+    });
+
+    attachCardEvents(editable);
+    if(editable) attachDnD();
+    renderKpis(cardsForBoard);
+  }
+
+  function cardHtml(c, editable){
+    const late = isLate(c);
+    const outrosColaboradores = (c.colaboradoresTodos||[]).filter(l=> l !== c.colaborador);
+    return `
+      <div class="card ${priClass(c.prioridade)} ${editable?'':'readonly'}" ${editable?'draggable="true"':''} data-id="${c.participacaoId}">
+        <div class="card-title-row">
+          <div class="card-title">${escapeHtml(c.titulo)}</div>
+          ${!c.visualizada ? '<div class="card-new-dot" title="Nova"></div>' : ''}
+        </div>
+        <div class="card-meta">
+          <span class="card-project">${escapeHtml(c.projeto || "Sem projeto")}</span>
+          <span class="card-due ${late ? 'late':''}">${c.prazo ? fmtDate(c.prazo) : '—'}</span>
+        </div>
+        <div class="card-footer">
+          <span class="card-pri-tag">${escapeHtml(c.prioridade)}</span>
+          ${outrosColaboradores.length ? `<span class="card-collab">+ ${outrosColaboradores.map(nomeDe).join(", ")}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderKpis(cardsForBoard){
+    const total = cardsForBoard.length;
+    const late = cardsForBoard.filter(isLate).length;
+    const doing = cardsForBoard.filter(c=>c.status==="doing").length;
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+    const weekAgoStr = weekAgo.toISOString().slice(0,10);
+    const doneWeek = cardsForBoard.filter(c=> c.status==="done" && c.concluidoEm && c.concluidoEm >= weekAgoStr).length;
+    document.getElementById("kpiTotal").textContent = total;
+    document.getElementById("kpiLate").textContent = late;
+    document.getElementById("kpiDoing").textContent = doing;
+    document.getElementById("kpiWeek").textContent = doneWeek;
+  }
+
+  // ---------------------------------------------------------------------
+  // Cliques e Drag & Drop
+  // ---------------------------------------------------------------------
+  function attachCardEvents(editable){
+    document.querySelectorAll(".card").forEach(card=>{
+      card.addEventListener("click", ()=> openExistingTaskModal(card.dataset.id));
+      if(!editable) return;
+      card.addEventListener("dragstart", (e)=>{ draggedParticipacaoId = card.dataset.id; card.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
+      card.addEventListener("dragend", ()=>{ card.classList.remove("dragging"); draggedParticipacaoId = null; });
+    });
+  }
+  function attachDnD(){
+    document.querySelectorAll(".card-list").forEach(list=>{
+      list.addEventListener("dragover", (e)=>{ e.preventDefault(); list.classList.add("drag-over"); });
+      list.addEventListener("dragleave", ()=> list.classList.remove("drag-over"));
+      list.addEventListener("drop", (e)=>{
+        e.preventDefault();
+        list.classList.remove("drag-over");
+        if(!draggedParticipacaoId) return;
+        api("atualizarStatusParticipacao", {participacaoId: draggedParticipacaoId, status: list.dataset.status, loginSolicitante: currentUser.login, papelSolicitante: currentUser.papel})
+          .then(()=> loadCardsAndRender())
+          .catch(()=>{});
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Modal de Tarefa — criação
+  // ---------------------------------------------------------------------
+  function openNewTaskModal(){
+    editingCard = null;
+    creatingForLogin = boardOwnerLogin();
+    hideDeleteConfirm();
+
+    document.getElementById("modalTitle").textContent = "Nova tarefa";
+    document.getElementById("btnDeleteTask").style.display = "none";
+    document.getElementById("mTitulo").value = "";
+    document.getElementById("mDescricao").value = "";
+    document.getElementById("mProjeto").value = "";
+    document.getElementById("mPrioridade").value = "Média";
+    document.getElementById("mPrazo").value = "";
+    document.getElementById("mStatus").value = "todo";
+
+    ["mTitulo","mDescricao","mProjeto","mPrioridade","mPrazo"].forEach(id=> document.getElementById(id).disabled = false);
+
+    document.getElementById("collabPickerWrap").style.display = "block";
+    document.getElementById("collabStaticWrap").style.display = "none";
+    renderCollabPicker(creatingForLogin);
+
+    document.getElementById("metaCreatedBy").style.display = "none";
+    document.getElementById("updatesSection").style.display = "none";
+    updateStatusFieldVisibility();
+
+    document.getElementById("overlay").classList.add("active");
+    document.getElementById("mTitulo").focus();
+  }
+
+  function renderCollabPicker(preSelecionado){
+    const wrap = document.getElementById("collabPicker");
+    const usuarios = Object.values(colegasMap).sort((a,b)=> a.nome.localeCompare(b.nome));
+    wrap.innerHTML = usuarios.map(u=>{
+      const checked = u.login === preSelecionado;
+      return `<label class="collab-chip ${checked?'checked':''}" data-login="${escapeHtml(u.login)}">
+        <input type="checkbox" value="${escapeHtml(u.login)}" ${checked?'checked':''}> ${escapeHtml(u.nome)}
+      </label>`;
+    }).join("");
+    wrap.querySelectorAll(".collab-chip").forEach(chip=>{
+      chip.addEventListener("click", (e)=>{
+        // deixa o input nativo processar o toggle, depois sincroniza a classe visual
+        setTimeout(()=>{
+          const input = chip.querySelector("input");
+          chip.classList.toggle("checked", input.checked);
+          updateStatusFieldVisibility();
+        }, 0);
+      });
+    });
+    updateStatusFieldVisibility();
+  }
+  function getSelectedCollaborators(){
+    return Array.from(document.querySelectorAll("#collabPicker input:checked")).map(i=>i.value);
+  }
+  function updateStatusFieldVisibility(){
+    if(editingCard) return; // ao editar, visibilidade tratada em openExistingTaskModal
+    const selecionados = getSelectedCollaborators();
+    const soEuMesmo = selecionados.length === 1 && selecionados[0] === currentUser.login;
+    document.getElementById("statusFieldWrap").style.display = soEuMesmo ? "block" : "none";
+    document.getElementById("statusLockedNote").style.display = soEuMesmo ? "none" : "block";
+  }
+
+  // ---------------------------------------------------------------------
+  // Modal de Tarefa — edição / visualização
+  // ---------------------------------------------------------------------
+  function openExistingTaskModal(participacaoId){
+    const c = allCards.find(x=> String(x.participacaoId) === String(participacaoId));
+    if(!c) return;
+    editingCard = c;
+    creatingForLogin = null;
+    hideDeleteConfirm();
+
+    document.getElementById("modalTitle").textContent = "Detalhes da tarefa";
+
+    const podeEditarCore = (c.criadoPor === currentUser.login) || currentUser.papel === "admin";
+    const podeEditarStatus = (c.colaborador === currentUser.login) || currentUser.papel === "admin";
+    const souColaborador = (c.colaboradoresTodos||[]).includes(currentUser.login);
+    const podeExcluir = (c.criadoPor === currentUser.login) || currentUser.papel === "admin";
+
+    document.getElementById("mTitulo").value = c.titulo || "";
+    document.getElementById("mDescricao").value = c.descricao || "";
+    document.getElementById("mProjeto").value = c.projeto || "";
+    document.getElementById("mPrioridade").value = c.prioridade || "Média";
+    document.getElementById("mPrazo").value = c.prazo || "";
+    document.getElementById("mStatus").value = c.status || "todo";
+
+    ["mTitulo","mDescricao","mProjeto","mPrioridade","mPrazo"].forEach(id=> document.getElementById(id).disabled = !podeEditarCore);
+    document.getElementById("mStatus").disabled = !podeEditarStatus;
+    document.getElementById("statusFieldWrap").style.display = "block";
+    document.getElementById("statusLockedNote").style.display = "none";
+
+    document.getElementById("collabPickerWrap").style.display = "none";
+    document.getElementById("collabStaticWrap").style.display = "block";
+    document.getElementById("collabStaticList").innerHTML = (c.colaboradoresTodos||[]).map(l=>
+      `<span class="collab-static">${escapeHtml(nomeDe(l))}${l===c.colaborador?' (este card)':''}</span>`
+    ).join("");
+
+    document.getElementById("metaCreatedBy").style.display = "block";
+    document.getElementById("metaCreatedBy").innerHTML = `Criado por <b>${escapeHtml(nomeDe(c.criadoPor))}</b> em ${escapeHtml(fmtDate(c.criadoEm))}`;
+
+    document.getElementById("btnDeleteTask").style.display = podeExcluir ? "inline-block" : "none";
+    document.getElementById("btnSaveTask").style.display = podeEditarCore || podeEditarStatus ? "inline-block" : "none";
+
+    document.getElementById("updatesSection").style.display = "block";
+    document.getElementById("updateFormWrap").style.display = souColaborador ? "flex" : "none";
+    document.getElementById("updateTexto").value = "";
+    document.getElementById("updateImagem").value = "";
+    document.getElementById("updateFileName").textContent = "";
+    pendingImageFile = null;
+    loadUpdates(c.tarefaId);
+
+    document.getElementById("overlay").classList.add("active");
+
+    // Marca como visualizada se é o dono deste card e ainda não tinha visto
+    if(c.colaborador === currentUser.login && !c.visualizada){
+      api("marcarVisualizada", {participacaoId: c.participacaoId}).then(()=>{
+        c.visualizada = true;
+        const dot = document.querySelector(`.card[data-id="${c.participacaoId}"] .card-new-dot`);
+        if(dot) dot.remove();
+      }).catch(()=>{});
+    }
+  }
+
+  function closeTaskModal(){
+    document.getElementById("overlay").classList.remove("active");
+    editingCard = null;
+    creatingForLogin = null;
+    hideDeleteConfirm();
+  }
+
+  function saveTask(){
+    const titulo = document.getElementById("mTitulo").value.trim();
+    if(!titulo){ toast("Informe um título para a tarefa"); return; }
+
+    if(editingCard){
+      const podeEditarCore = (editingCard.criadoPor === currentUser.login) || currentUser.papel === "admin";
+      const podeEditarStatus = (editingCard.colaborador === currentUser.login) || currentUser.papel === "admin";
+      const chamadas = [];
+      if(podeEditarCore){
+        chamadas.push(api("atualizarTarefaCore", {
+          tarefaId: editingCard.tarefaId,
+          loginSolicitante: currentUser.login,
+          papelSolicitante: currentUser.papel,
+          titulo,
+          descricao: document.getElementById("mDescricao").value.trim(),
+          projeto: document.getElementById("mProjeto").value.trim(),
+          prioridade: document.getElementById("mPrioridade").value,
+          prazo: document.getElementById("mPrazo").value,
+        }));
+      }
+      if(podeEditarStatus){
+        const novoStatus = document.getElementById("mStatus").value;
+        if(novoStatus !== editingCard.status){
+          chamadas.push(api("atualizarStatusParticipacao", {participacaoId: editingCard.participacaoId, status: novoStatus, loginSolicitante: currentUser.login, papelSolicitante: currentUser.papel}));
+        }
+      }
+      Promise.all(chamadas)
+        .then(()=>{ toast("Tarefa atualizada"); closeTaskModal(); loadCardsAndRender(); })
+        .catch(()=>{});
+    } else {
+      const colaboradores = getSelectedCollaborators();
+      if(colaboradores.length === 0){ toast("Selecione ao menos um colaborador"); return; }
+      const soEuMesmo = colaboradores.length === 1 && colaboradores[0] === currentUser.login;
+      api("criarTarefa", {
+        titulo,
+        descricao: document.getElementById("mDescricao").value.trim(),
+        projeto: document.getElementById("mProjeto").value.trim(),
+        prioridade: document.getElementById("mPrioridade").value,
+        prazo: document.getElementById("mPrazo").value,
+        status: soEuMesmo ? document.getElementById("mStatus").value : "todo",
+        colaboradores,
+        criadoPor: currentUser.login,
+      }).then(()=>{
+        toast(colaboradores.length > 1 ? "Tarefa criada para " + colaboradores.length + " colaboradores" : "Tarefa criada");
+        closeTaskModal();
+        loadCardsAndRender();
+      }).catch(()=>{});
+    }
+  }
+
+  function showDeleteConfirm(){
+    document.getElementById("btnDeleteTask").style.display = "none";
+    document.getElementById("footerSpacer").style.display = "none";
+    document.getElementById("btnCancelModal").style.display = "none";
+    document.getElementById("btnSaveTask").style.display = "none";
+    const row = document.getElementById("confirmDeleteRow");
+    row.style.display = "flex"; row.style.flex = "1"; row.style.justifyContent = "space-between";
+  }
+  function hideDeleteConfirm(){
+    document.getElementById("confirmDeleteRow").style.display = "none";
+    document.getElementById("footerSpacer").style.display = "block";
+    document.getElementById("btnCancelModal").style.display = "inline-block";
+    if(editingCard){
+      const podeExcluir = (editingCard.criadoPor === currentUser.login) || currentUser.papel === "admin";
+      const podeEditarCore = (editingCard.criadoPor === currentUser.login) || currentUser.papel === "admin";
+      const podeEditarStatus = (editingCard.colaborador === currentUser.login) || currentUser.papel === "admin";
+      document.getElementById("btnDeleteTask").style.display = podeExcluir ? "inline-block" : "none";
+      document.getElementById("btnSaveTask").style.display = (podeEditarCore || podeEditarStatus) ? "inline-block" : "none";
+    } else {
+      document.getElementById("btnSaveTask").style.display = "inline-block";
+    }
+  }
+  function confirmDeleteTask(){
+    if(!editingCard) return;
+    api("excluirTarefa", {tarefaId: editingCard.tarefaId, loginSolicitante: currentUser.login, papelSolicitante: currentUser.papel})
+      .then(()=>{ toast("Tarefa excluída"); closeTaskModal(); loadCardsAndRender(); })
+      .catch(()=>{});
+  }
+
+  // ---------------------------------------------------------------------
+  // Atualizações (comentários + imagem)
+  // ---------------------------------------------------------------------
+  function loadUpdates(tarefaId){
+    const list = document.getElementById("updatesList");
+    list.innerHTML = `<p class="updates-empty">Carregando...</p>`;
+    api("getAtualizacoes", {tarefaId}).then(data=>{
+      const atualizacoes = data.atualizacoes || [];
+      if(atualizacoes.length === 0){
+        list.innerHTML = `<p class="updates-empty">Nenhuma atualização registrada ainda.</p>`;
+        return;
+      }
+      list.innerHTML = atualizacoes.map(a=>`
+        <div class="update-item">
+          <div class="update-avatar">${escapeHtml(iniciaisDe(a.autor))}</div>
+          <div class="update-body">
+            <div class="update-head">
+              <span class="update-author">${escapeHtml(nomeDe(a.autor))}</span>
+              <span class="update-date">${escapeHtml(fmtDateTime(a.criadoEm))}</span>
+            </div>
+            ${a.texto ? `<div class="update-text">${escapeHtml(a.texto)}</div>` : ''}
+            ${a.imagemUrl ? `<img class="update-img" src="${escapeHtml(a.imagemUrl)}" alt="Imagem anexada" loading="lazy">` : ''}
+          </div>
+        </div>
+      `).join("");
+    }).catch(()=>{
+      list.innerHTML = `<p class="updates-empty">Não foi possível carregar as atualizações.</p>`;
+    });
+  }
+  function fmtDateTime(iso){
+    if(!iso) return "";
+    try{
+      const d = new Date(iso);
+      return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", {hour:'2-digit', minute:'2-digit'});
+    }catch(e){ return iso; }
+  }
+
+  document.getElementById("updateImagem").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    pendingImageFile = file || null;
+    document.getElementById("updateFileName").textContent = file ? file.name : "";
+  });
+
+  function resizeImageToBase64(file){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = (e)=>{
+        const img = new Image();
+        img.onload = ()=>{
+          const maxDim = 1280;
+          let w = img.width, h = img.height;
+          if(w > maxDim || h > maxDim){
+            if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+          resolve(dataUrl.split(",")[1]);
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function postUpdate(){
+    if(!editingCard) return;
+    const texto = document.getElementById("updateTexto").value.trim();
+    if(!texto && !pendingImageFile){ toast("Escreva algo ou anexe uma imagem"); return; }
+
+    const btn = document.getElementById("btnPostUpdate");
+    btn.disabled = true; btn.textContent = "Publicando...";
+
+    const finalizar = (imagemBase64)=>{
+      api("criarAtualizacao", {
+        tarefaId: editingCard.tarefaId,
+        autor: currentUser.login,
+        texto,
+        imagemBase64: imagemBase64 || "",
+        imagemTipo: "image/jpeg",
+        imagemNome: "update_" + Date.now() + ".jpg",
+      }).then(()=>{
+        document.getElementById("updateTexto").value = "";
+        document.getElementById("updateImagem").value = "";
+        document.getElementById("updateFileName").textContent = "";
+        pendingImageFile = null;
+        loadUpdates(editingCard.tarefaId);
+        toast("Atualização publicada");
+      }).catch(()=>{}).finally(()=>{
+        btn.disabled = false; btn.textContent = "Publicar";
+      });
+    };
+
+    if(pendingImageFile){
+      resizeImageToBase64(pendingImageFile).then(finalizar).catch(()=>{
+        toast("Não foi possível processar a imagem");
+        btn.disabled = false; btn.textContent = "Publicar";
+      });
+    } else {
+      finalizar(null);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // USUÁRIOS (admin)
+  // ---------------------------------------------------------------------
+  function renderUsersTable(){
+    const tbody = document.getElementById("usersTableBody");
+    if(allEquipe.length === 0){ tbody.innerHTML = `<tr><td colspan="5" style="color:var(--text-faint);">Nenhum usuário cadastrado.</td></tr>`; return; }
+    tbody.innerHTML = allEquipe.map(u=>{
+      const ativo = !(u.ativo === false || u.ativo === "FALSE" || u.ativo === "false");
+      return `<tr>
+        <td>${escapeHtml(u.nome)}</td>
+        <td><span style="font-family:var(--mono); font-size:12px;">${escapeHtml(u.login)}</span></td>
+        <td><span class="badge badge-${u.papel}">${escapeHtml(u.papel)}</span></td>
+        <td>${ativo ? '<span class="badge" style="background:var(--low-soft); color:var(--low);">Ativo</span>' : '<span class="badge badge-inactive">Desativado</span>'}</td>
+        <td><button class="btn btn-small" data-edit="${escapeHtml(u.id)}">Editar</button></td>
+      </tr>`;
+    }).join("");
+    tbody.querySelectorAll("[data-edit]").forEach(btn=> btn.addEventListener("click", ()=> openUserModal(btn.dataset.edit)));
+  }
+
+  let editingUserId = null;
+  function openUserModal(id){
+    editingUserId = id || null;
+    const isEdit = !!id;
+    document.getElementById("userModalTitle").textContent = isEdit ? "Editar usuário" : "Novo usuário";
+    document.getElementById("uSenhaLabel").textContent = isEdit ? "Nova senha (deixe em branco para manter)" : "Senha";
+    document.getElementById("uAtivoWrap").style.display = isEdit ? "block" : "none";
+    document.getElementById("uSenha").value = "";
+    if(isEdit){
+      const u = allEquipe.find(x=>x.id===id);
+      document.getElementById("uNome").value = u.nome || "";
+      document.getElementById("uLogin").value = u.login || "";
+      document.getElementById("uPapel").value = u.papel || "membro";
+      const ativo = !(u.ativo === false || u.ativo === "FALSE" || u.ativo === "false");
+      document.getElementById("uAtivo").value = ativo ? "true" : "false";
+    } else {
+      document.getElementById("uNome").value = "";
+      document.getElementById("uLogin").value = "";
+      document.getElementById("uPapel").value = "membro";
+    }
+    document.getElementById("userOverlay").classList.add("active");
+    document.getElementById("uNome").focus();
+  }
+  function closeUserModal(){ document.getElementById("userOverlay").classList.remove("active"); editingUserId = null; }
+  function saveUser(){
+    const nome = document.getElementById("uNome").value.trim();
+    const login = document.getElementById("uLogin").value.trim();
+    const senha = document.getElementById("uSenha").value;
+    const papel = document.getElementById("uPapel").value;
+    if(!nome || !login){ toast("Informe nome e login"); return; }
+    if(!editingUserId && !senha){ toast("Defina uma senha para o novo usuário"); return; }
+    if(editingUserId){
+      const payload = {id: editingUserId, papelSolicitante: currentUser.papel, nome, login, papel, ativo: document.getElementById("uAtivo").value === "true"};
+      if(senha) payload.senha = senha;
+      api("atualizarUsuario", payload).then(()=>{ toast("Usuário atualizado"); closeUserModal(); loadUsersAndRenderTable(); loadColegas(); }).catch(()=>{});
+    } else {
+      api("criarUsuario", {papelSolicitante: currentUser.papel, nome, login, senha, papel}).then(()=>{ toast("Usuário criado"); closeUserModal(); loadUsersAndRenderTable(); loadColegas(); }).catch(()=>{});
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Bind de eventos
+  // ---------------------------------------------------------------------
+  function bindEvents(){
+    document.getElementById("btnLogin").addEventListener("click", attemptLogin);
+    document.getElementById("loginSenha").addEventListener("keydown", e=>{ if(e.key==="Enter") attemptLogin(); });
+    document.getElementById("loginUsuario").addEventListener("keydown", e=>{ if(e.key==="Enter") attemptLogin(); });
+    document.getElementById("btnLogout").addEventListener("click", logout);
+    document.getElementById("btnRefresh").addEventListener("click", ()=> switchTab(currentTab));
+
+    document.getElementById("btnNewTask").addEventListener("click", openNewTaskModal);
+    document.getElementById("btnCloseModal").addEventListener("click", closeTaskModal);
+    document.getElementById("btnCancelModal").addEventListener("click", closeTaskModal);
+    document.getElementById("btnSaveTask").addEventListener("click", saveTask);
+    document.getElementById("btnDeleteTask").addEventListener("click", showDeleteConfirm);
+    document.getElementById("btnCancelDelete").addEventListener("click", hideDeleteConfirm);
+    document.getElementById("btnConfirmDelete").addEventListener("click", confirmDeleteTask);
+    document.getElementById("btnPostUpdate").addEventListener("click", postUpdate);
+    document.getElementById("overlay").addEventListener("click", (e)=>{ if(e.target.id === "overlay") closeTaskModal(); });
+
+    document.getElementById("btnNewUser").addEventListener("click", ()=> openUserModal(null));
+    document.getElementById("btnCloseUserModal").addEventListener("click", closeUserModal);
+    document.getElementById("btnCancelUserModal").addEventListener("click", closeUserModal);
+    document.getElementById("btnSaveUser").addEventListener("click", saveUser);
+    document.getElementById("userOverlay").addEventListener("click", (e)=>{ if(e.target.id === "userOverlay") closeUserModal(); });
+
+    document.addEventListener("keydown", (e)=>{ if(e.key === "Escape"){ closeTaskModal(); closeUserModal(); } });
+
+    ["fSearch","fProjeto","fPrioridade","fPrazo"].forEach(id=>{
+      document.getElementById(id).addEventListener("input", renderBoard);
+      document.getElementById(id).addEventListener("change", renderBoard);
+    });
+    document.getElementById("btnClearFilters").addEventListener("click", ()=>{
+      document.getElementById("fSearch").value = "";
+      document.getElementById("fProjeto").value = "";
+      document.getElementById("fPrioridade").value = "";
+      document.getElementById("fPrazo").value = "";
+      renderBoard();
+    });
+  }
+
+  function init(){
+    if(!WEBAPP_URL) document.getElementById("configWarning").classList.add("show");
+    bindEvents();
+    loadSession();
+    if(currentUser && currentUser.login) enterApp();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
